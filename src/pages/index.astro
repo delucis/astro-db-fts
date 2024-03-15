@@ -1,0 +1,70 @@
+---
+import { db, sql } from 'astro:db';
+import { Markdown } from 'astro-remote';
+
+const query = Astro.url.searchParams.get('search');
+let rows = [];
+let error: Error;
+if (query) {
+	const sanitizedQuery = '"' + query.replaceAll('"', '""') + '"';
+	try {
+		({ rows } = await db.run(sql`
+			SELECT
+				title,
+				highlight(UDHRArticles, 1, '<mark>', '</mark>') as content
+			FROM UDHRArticles
+			WHERE UDHRArticles MATCH ${sanitizedQuery}
+			ORDER BY rank
+		`));
+	} catch (e) {
+		error = e;
+	}
+}
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<title>Astro</title>
+	</head>
+	<body>
+		<h1>Full-text search example</h1>
+
+		<p>This page shows search results via look-up from an FTS5 table in the SQLite database.</p>
+
+	  <form>
+			<label>
+				Search Query
+				<input type="search" name="search" required value={query}>
+			</label>
+			<button>Submit</button>
+
+			<p>
+				Example queries:
+				<a href="/?search=everyone">everyone</a>&nbsp;
+				<a href="/?search=no+one">no one</a>&nbsp;
+				<a href="/?search=liberty">liberty</a>&nbsp;
+				<a href="/?search=leisure">leisure</a>&nbsp;
+			</p>
+		</form>
+
+		{error ? (
+			<h2>Error</h2>
+			<pre>{error}</pre>
+		) : query && (
+			<>
+			<h2>{rows.length} result{rows.length === 1 ? '' : 's'} for "{query}"</h2>
+
+			{rows.map(({ title, content }) => (
+				<article>
+					<h2>{title}</h2>
+					<Markdown {content} />
+				</article>
+			))}
+			</>
+		)}
+	</body>
+</html>
