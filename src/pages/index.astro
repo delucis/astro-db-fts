@@ -3,23 +3,26 @@ import { db, sql } from 'astro:db';
 import { Markdown } from 'astro-remote';
 
 const query = Astro.url.searchParams.get('search');
-let rows = [];
+let res = {} as any;
 let error: Error;
 if (query) {
 	const sanitizedQuery = '"' + query.replaceAll('"', '""') + '"';
 	try {
-		({ rows } = await db.run(sql`
+		res = await db.run(sql`
 			SELECT
 				title,
 				highlight(UDHRArticles, 1, '<mark>', '</mark>') as content
 			FROM UDHRArticles
 			WHERE UDHRArticles MATCH ${sanitizedQuery}
 			ORDER BY rank
-		`));
+		`);
 	} catch (e) {
 		error = e;
+		console.error(e);
 	}
 }
+if (res) console.log(res);
+const { rows } = res;
 ---
 
 <html lang="en">
@@ -35,10 +38,10 @@ if (query) {
 
 		<p>This page shows search results via look-up from an FTS5 table in the SQLite database.</p>
 
-	  <form>
+		<form>
 			<label>
 				Search Query
-				<input type="search" name="search" required value={query}>
+				<input type="search" name="search" required value={query} />
 			</label>
 			<button>Submit</button>
 
@@ -51,20 +54,28 @@ if (query) {
 			</p>
 		</form>
 
-		{error ? (
-			<h2>Error</h2>
-			<pre>{error}</pre>
-		) : query && (
-			<>
-			<h2>{rows.length} result{rows.length === 1 ? '' : 's'} for "{query}"</h2>
+		{
+			error ? (
+				<>
+					<h2>Error</h2>
+					<pre>{error}</pre>
+				</>
+			) : (
+				query && (
+					<>
+						<h2>
+							{rows?.length} result{rows.length === 1 ? '' : 's'} for "{query}"
+						</h2>
 
-			{rows.map(({ title, content }) => (
-				<article>
-					<h2>{title}</h2>
-					<Markdown {content} />
-				</article>
-			))}
-			</>
-		)}
+						{rows.map(({ title, content }) => (
+							<article>
+								<h2>{title}</h2>
+								<Markdown {content} />
+							</article>
+						))}
+					</>
+				)
+			)
+		}
 	</body>
 </html>
