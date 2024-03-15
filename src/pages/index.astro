@@ -2,6 +2,8 @@
 import { db, sql } from 'astro:db';
 import { Markdown } from 'astro-remote';
 
+const t0 = performance.now();
+
 const query = Astro.url.searchParams.get('search');
 let res: Awaited<ReturnType<typeof db.run>> | Array<[string, string]> = [];
 let rows = [];
@@ -21,6 +23,9 @@ if (query) {
 		error = e;
 	}
 }
+
+const timeFormatter = new Intl.NumberFormat('en', { style: 'unit', unit: 'millisecond' });
+const elapsed = timeFormatter.format(performance.now() - t0);
 
 if (Array.isArray(res)) {
 	rows = res.map(([title, content]) => ({ title, content }));
@@ -74,6 +79,7 @@ if (Array.isArray(res)) {
 						<h2>
 							{rows.length} result{rows.length === 1 ? '' : 's'} for "{query}"
 						</h2>
+						<p>Search completed in {elapsed}</p>
 
 						{rows.map(({ title, content }) => (
 							<article>
