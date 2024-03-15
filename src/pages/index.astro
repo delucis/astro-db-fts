@@ -3,7 +3,7 @@ import { db, sql } from 'astro:db';
 import { Markdown } from 'astro-remote';
 
 const query = Astro.url.searchParams.get('search');
-let res: Awaited<ReturnType<typeof db.run>> | Array<[string, string]>;
+let res: Awaited<ReturnType<typeof db.run>> | Array<[string, string]> = [];
 let rows = [];
 let error: Error;
 if (query) {
