@@ -3,22 +3,29 @@ import { db, sql } from 'astro:db';
 import { Markdown } from 'astro-remote';
 
 const query = Astro.url.searchParams.get('search');
+let res: Awaited<ReturnType<typeof db.run>> | Array<[string, string]>;
 let rows = [];
 let error: Error;
 if (query) {
 	const sanitizedQuery = '"' + query.replaceAll('"', '""') + '"';
 	try {
-		({ rows } = await db.run(sql`
+		res = await db.run(sql`
 			SELECT
 				title,
 				highlight(UDHRArticles, 1, '<mark>', '</mark>') as content
 			FROM UDHRArticles
 			WHERE UDHRArticles MATCH ${sanitizedQuery}
 			ORDER BY rank
-		`));
+		`);
 	} catch (e) {
 		error = e;
 	}
+}
+
+if (Array.isArray(res)) {
+	rows = res.map(([title, content]) => ({ title, content }));
+} else {
+	({ rows } = res);
 }
 ---
 
