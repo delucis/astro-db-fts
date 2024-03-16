@@ -1,4 +1,5 @@
-import { db, Article, sql } from 'astro:db';
+import { db, Article } from 'astro:db';
+import initFts from './init-fts';
 
 // https://astro.build/db/seed
 export default async function seed() {
@@ -6,17 +7,10 @@ export default async function seed() {
 		articles.map((content, index) => ({
 			title: `Article ${index + 1}`,
 			content,
-		})),
+		}))
 	);
 
-	// Create virtual full-text search table.
-	await db.run(sql`CREATE VIRTUAL TABLE IF NOT EXISTS UDHRArticles USING FTS5(title, content);`);
-	// Clean up before re-inserting entries.
-	await db.run(sql`DELETE FROM UDHRArticles;`);
-	// Insert content into the database.
-	await db.run(
-		sql`INSERT INTO UDHRArticles (title, content) SELECT title, content FROM ${Article};`,
-	);
+	await initFts();
 }
 
 /**
