@@ -1,47 +1,66 @@
-# Astro Starter Kit: Minimal
+# Astro DB full-text search example
 
-```sh
-npm create astro@latest -- --template minimal
-```
+This example demonstrates creating an [FTS5 virtual table](https://sqlite.org/fts5.html) in [Astro DB](https://astro.build/db/) to power full-text search on table content.
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/withastro/astro/tree/latest/examples/minimal)
-[![Open with CodeSandbox](https://assets.codesandbox.io/github/button-edit-lime.svg)](https://codesandbox.io/p/sandbox/github/withastro/astro/tree/latest/examples/minimal)
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/withastro/astro?devcontainer_path=.devcontainer/minimal/devcontainer.json)
+## Summary
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+Neither Astro DB nor Drizzle — the ORM Astro DB build on — have bindings for FTS5 tables, so this is done manually with SQL statements and Drizzle’s [`` sql`...` `` tagged template utility](https://orm.drizzle.team/docs/sql).
 
-## 🚀 Project Structure
+1. In [`db/init-fts.ts`](./db/init-fts.ts), an FTS5 table is created and populated using an existing Astro DB table.
+   (In this case it contains a row for each article of the Universal Declaration of Human Rights and is named `UDHRArticles`.)
+   This method is called from [`db/seed.ts`](./db/seed.ts) to set up FTS5 in the local development environment.
 
-Inside of your Astro project, you'll see the following folders and files:
+2. In [`src/pages/index.astro`](./src/pages/index.astro), if a `?search` query param is sent to the server, the `UDHRArticles` table is queried for items matching the search query.
 
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
-```
+## Running locally
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+1. Install dependencies:
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+   ```sh
+   pnpm i
+   ```
 
-Any static assets, like images, can be placed in the `public/` directory.
+2. Start the dev server:
 
-## 🧞 Commands
+   ```sh
+   pnpm dev
+   ```
 
-All commands are run from the root of the project, from a terminal:
+Open the URL printed in the terminal and try searching.
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+## Hosting the FTS5 table on Astro Studio
 
-## 👀 Want to learn more?
+Because FTS5 tables cannot be configured in [`db/config.ts`](./db/config.ts), they will not be created on the remote database when running [`astro db push`](https://docs.astro.build/en/guides/integrations-guide/db/#astro-db-push).
 
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+Instead, we will need to manually create them using the [`astro db execute`](https://docs.astro.build/en/guides/integrations-guide/db/#astro-db-execute-file-path) command.
+
+1. Make sure you are logged-in and have linked the repository to an Astro Studio project:
+
+   ```sh
+   pnpm astro login
+   pnpm astro link
+   ```
+
+2. Push your database schema — this creates any tables defined in `db/config.ts` on the remote database:
+
+   ```sh
+   pnpm astro db push
+   ```
+
+3. Execute the project seed file against the remote database to populate it and create the FTS5 table:
+
+   ```sh
+   pnpm astro db execute db/seed.ts --remote
+   ```
+
+You can now deploy your project with `astro build --remote` and use the hosted database for queries.
+Make sure you add the `ASTRO_STUDIO_APP_TOKEN` environment variable with a token from the Studio dashboard to your hosting CI.
+
+## Notes
+
+- SQLite FTS5 has a handy [`highlight()`](https://sqlite.org/fts5.html#the_highlight_function) function.
+  This is used in the search query to wrap matches in results with `<mark>`.
+
+- In this example, I opted for a combo of FTS5’s `porter` and `unicode61` [tokenizers](https://sqlite.org/fts5.html#tokenizers).
+  This should work well for English texts, but Porter stemming is not designed to handle other languages.
+  Unfortunately (and kind of disappointingly), FTS5 doesn’t have support for an ICU tokenizer even though its predecessors FTS3 and FTS4 did.
